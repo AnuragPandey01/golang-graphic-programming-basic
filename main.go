@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"runtime"
 	"strings"
 
@@ -21,24 +22,20 @@ const vertexShaderSource = `
 #version 330 core
 layout (location = 0) in vec3 aPos;
 
-out vec4 vertexColor;
-
 void main() {
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-    vertexColor = vec4(0.5,0.0,0.0,1.0);
 }
 ` + "\x00"
 
 const fragmentShaderSource = `
 #version 330 core
 
-in vec4 vertexColor;
-
 out vec4 FragColor;
 
+uniform vec4 ourColor;
+
 void main() {
-	FragColor = vertexColor;
-    //FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f); // Orange color
+	FragColor = ourColor;
 }
 ` + "\x00"
 
@@ -123,7 +120,10 @@ func main() {
 	gl.GetIntegerv(gl.MAX_VERTEX_ATTRIBS,&max_vertex_attr)
 
 	fmt.Printf("max attr is %u",max_vertex_attr)
-	
+
+	gl.UseProgram(shaderProgram)
+
+	ourColorUniformLocation := gl.GetUniformLocation(shaderProgram, gl.Str("ourColor"+"\x00"))
 	
 	// render loop
 	for !window.ShouldClose() {
@@ -133,10 +133,14 @@ func main() {
 
 		// rendering commands
 		gl.Clear(gl.COLOR_BUFFER_BIT)
-		gl.UseProgram(shaderProgram)
 
 		// default: gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 		// gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+		// 
+		
+		timeValue := glfw.GetTime();
+		greenValue := (math.Sin(timeValue) / 2.0) + 0.5;
+		gl.Uniform4f(ourColorUniformLocation, 0.0, float32(greenValue), 0.0, 1.0)
 		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 		
 		// check and call events and swap buffers
