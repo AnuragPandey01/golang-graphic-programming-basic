@@ -21,17 +21,24 @@ const vertexShaderSource = `
 #version 330 core
 layout (location = 0) in vec3 aPos;
 
+out vec4 vertexColor;
+
 void main() {
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    vertexColor = vec4(0.5,0.0,0.0,1.0);
 }
 ` + "\x00"
 
 const fragmentShaderSource = `
 #version 330 core
+
+in vec4 vertexColor;
+
 out vec4 FragColor;
 
 void main() {
-    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f); // Orange color
+	FragColor = vertexColor;
+    //FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f); // Orange color
 }
 ` + "\x00"
 
@@ -110,6 +117,13 @@ func main() {
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER,ebo)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER,len(indices)*4,gl.Ptr(indices),gl.STATIC_DRAW)
 
+
+	// test
+	var max_vertex_attr int32
+	gl.GetIntegerv(gl.MAX_VERTEX_ATTRIBS,&max_vertex_attr)
+
+	fmt.Printf("max attr is %u",max_vertex_attr)
+	
 	
 	// render loop
 	for !window.ShouldClose() {
