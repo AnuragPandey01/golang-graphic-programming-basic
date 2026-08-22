@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"runtime"
-	"strings"
 
 	"log"
 
+	"github.com/anurag01/gogine/shader"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.4/glfw"
 )
@@ -16,31 +16,6 @@ func init() {
 	// See documentation for functions that are only allowed to be called from the main thread.
 	runtime.LockOSThread()
 }
-
-const vertexShaderSource = `
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aCol;
-
-out vec3 ourColor;
-
-void main() {
-    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-    ourColor = aCol;
-}
-` + "\x00"
-
-const fragmentShaderSource = `
-#version 330 core
-
-out vec4 FragColor;
-
-in vec3 ourColor;
-
-void main() {
-	FragColor = vec4(ourColor, 1.0);
-}
-` + "\x00"
 
 func main() {
 	err := glfw.Init()
@@ -72,11 +47,16 @@ func main() {
 		gl.Viewport(0,0,int32(width),int32(height))
 	})
 
-	shaderProgram, err := newShaderProgram(vertexShaderSource, fragmentShaderSource)
+	shaderProgram := shader.ShaderProgram{
+		FragmentShaderFilePath: "assets/fragment_shader.glsl",
+		VertexShaderFilePath: "assets/vertex_shader.glsl",
+	}
+
+	err = shaderProgram.Compile()
 	if err != nil {
 		log.Fatalln("Failed to create shader program:", err)
 	}
-	defer gl.DeleteProgram(shaderProgram)
+	defer shaderProgram.Delete()
 
 
 	vertices := []float32{
@@ -127,7 +107,7 @@ func main() {
 
 	fmt.Printf("max attr is %u",max_vertex_attr)
 
-	gl.UseProgram(shaderProgram)
+	shaderProgram.Use()
 
 	
 	// render loop
@@ -148,52 +128,6 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
-}
-
-// Helper to compile shaders and link them into a program
-func newShaderProgram(vertSrc, fragSrc string) (uint32, error) {
-	vertShader, err := compileShader(vertSrc, gl.VERTEX_SHADER)
-	if err != nil {
-		return 0, err
-	}
-	defer gl.DeleteShader(vertShader)
-
-	fragShader, err := compileShader(fragSrc, gl.FRAGMENT_SHADER)
-	if err != nil {
-		return 0, err
-	}
-	defer gl.DeleteShader(fragShader)
-
-	program := gl.CreateProgram()
-	gl.AttachShader(program, vertShader)
-	gl.AttachShader(program, fragShader)
-	gl.LinkProgram(program)
-
-
-	return program, nil
-}
-
-
-func compileShader(source string, shader_type uint32) (uint32, error){
-
-	shader := gl.CreateShader(shader_type)
-	csource, free := gl.Strs(source)
-	gl.ShaderSource(shader,1,csource,nil)
-	free()
-	gl.CompileShader(shader)
-
-	// error handling
-	var status int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
-		logMsg := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(logMsg))
-		return 0, fmt.Errorf("failed to compile shader: %s", logMsg)
-	}
-
-	return shader, nil
 }
 
 func processInput(window *glfw.Window){
