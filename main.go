@@ -9,6 +9,7 @@ import (
 	"github.com/anurag01/gogine/utils"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.4/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 
 	_ "image/jpeg"
 	_ "image/png"
@@ -122,7 +123,11 @@ func main() {
 
 	gl.Uniform1i(shaderProgram.GetUniformLocation("texture1"), 0)
 	gl.Uniform1i(shaderProgram.GetUniformLocation("texture2"), 1)
-	
+
+
+	trans := mgl32.Ident4().Mul4(mgl32.HomogRotate3D(mgl32.DegToRad(90.0),mgl32.Vec3{0.0,0.0,1.0}))
+	trans = trans.Mul4(mgl32.Scale3D(0.5, 0.5, 0.5))
+	gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("transform"), 1, false, &trans[0])
 
 	// render loop
 	for !window.ShouldClose() {
@@ -137,6 +142,10 @@ func main() {
 		// gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
 		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
+
+		trans := mgl32.Ident4().Mul4(mgl32.HomogRotate3D(float32(glfw.GetTime()),mgl32.Vec3{0.0,0.0,1.0}))
+		trans = trans.Mul4(mgl32.Scale3D(0.5, 0.5, 0.5))
+		gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("transform"), 1, false, &trans[0])
 
 		// check and call events and swap buffers
 		window.SwapBuffers()
