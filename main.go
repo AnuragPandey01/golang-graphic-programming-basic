@@ -48,7 +48,7 @@ func main() {
 		gl.Viewport(0, 0, int32(width), int32(height))
 	})
 
-	shaderProgram := shader.NewShaderProgram("assets/fragment_shader.glsl","assets/vertex_shader.glsl")
+	shaderProgram := shader.NewShaderProgram("assets/vertex_shader.glsl","assets/fragment_shader.glsl")
 
 	err = shaderProgram.Compile()
 	if err != nil {
@@ -74,21 +74,20 @@ func main() {
 	gl.GenTextures(1, &texture1)
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, texture1)
-	gl.GenTextures(1, &texture2)
-	gl.ActiveTexture(gl.TEXTURE1)
-	gl.BindTexture(gl.TEXTURE_2D, texture2)
-
 	tex1imgByteArray, tex1bounds, err := utils.LoadImageAsset("assets/container.jpg")
 	if err != nil {
 		log.Fatalf("Failed loading texture asset, %v", err)
 	}
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(tex1bounds.Dx()), int32(tex1bounds.Dy()), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(tex1imgByteArray))
+	gl.GenerateMipmap(gl.TEXTURE_2D)
+	
+	gl.GenTextures(1, &texture2)
+	gl.ActiveTexture(gl.TEXTURE1)
+	gl.BindTexture(gl.TEXTURE_2D, texture2)
 	tex2imgByteArray, tex2bounds, err := utils.LoadImageAsset("assets/awesomeface.png")
 	if err != nil {
 		log.Fatalf("Failed loading texture asset, %v", err)
 	}
-
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(tex1bounds.Dx()), int32(tex1bounds.Dy()), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(tex1imgByteArray))
-	gl.GenerateMipmap(gl.TEXTURE_2D)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(tex2bounds.Dx()), int32(tex2bounds.Dy()), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(tex2imgByteArray))
 	gl.GenerateMipmap(gl.TEXTURE_2D)
 
