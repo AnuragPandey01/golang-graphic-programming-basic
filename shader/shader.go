@@ -12,6 +12,15 @@ type ShaderProgram struct {
 	FragmentShaderFilePath string
 	VertexShaderFilePath   string
 	programID              uint32
+	uniformLocation        map[string]int32
+}
+
+func NewShaderProgram(vertexPath, fragmentPath string) *ShaderProgram {
+	return &ShaderProgram{
+		VertexShaderFilePath:   vertexPath,
+		FragmentShaderFilePath: fragmentPath,
+		uniformLocation:        make(map[string]int32),
+	}
 }
 
 func (shp *ShaderProgram) Use() {
@@ -22,7 +31,7 @@ func (shp *ShaderProgram) Delete() {
 	gl.DeleteProgram(shp.programID)
 }
 
-func (shp *ShaderProgram) Compile() (error) {
+func (shp *ShaderProgram) Compile() error {
 	vertShader, err := compileShader(shp.VertexShaderFilePath, gl.VERTEX_SHADER)
 	if err != nil {
 		return err
@@ -54,6 +63,18 @@ func (shp *ShaderProgram) Compile() (error) {
 	shp.programID = programObj
 
 	return nil
+}
+
+func (shp *ShaderProgram) GetUniformLocation(uniformName string) int32 {
+
+	if loc, exists := shp.uniformLocation[uniformName]; exists {
+		return loc
+	}
+	
+	strByteArray := append([]byte(uniformName), 0) //null terminating
+	loc := gl.GetUniformLocation(shp.programID, &strByteArray[0])
+	shp.uniformLocation[uniformName] = loc
+	return loc
 }
 
 func compileShader(file_path string, shader_type uint32) (uint32, error) {

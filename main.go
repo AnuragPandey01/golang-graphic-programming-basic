@@ -11,6 +11,7 @@ import (
 	"github.com/go-gl/glfw/v3.4/glfw"
 
 	_ "image/jpeg"
+	_ "image/png"
 )
 
 func init() {
@@ -47,10 +48,7 @@ func main() {
 		gl.Viewport(0, 0, int32(width), int32(height))
 	})
 
-	shaderProgram := shader.ShaderProgram{
-		FragmentShaderFilePath: "assets/fragment_shader.glsl",
-		VertexShaderFilePath:   "assets/vertex_shader.glsl",
-	}
+	shaderProgram := shader.NewShaderProgram("assets/fragment_shader.glsl","assets/vertex_shader.glsl")
 
 	err = shaderProgram.Compile()
 	if err != nil {
@@ -72,16 +70,26 @@ func main() {
 	}
 
 	//creating a texture
-	var texture uint32
-	gl.GenTextures(1, &texture)
-	gl.BindTexture(gl.TEXTURE_2D, texture)
+	var texture1, texture2 uint32
+	gl.GenTextures(1, &texture1)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, texture1)
+	gl.GenTextures(1, &texture2)
+	gl.ActiveTexture(gl.TEXTURE1)
+	gl.BindTexture(gl.TEXTURE_2D, texture2)
 
-	imgByteArray, bounds, err := utils.LoadImageAsset("assets/container.jpg")
+	tex1imgByteArray, tex1bounds, err := utils.LoadImageAsset("assets/container.jpg")
+	if err != nil {
+		log.Fatalf("Failed loading texture asset, %v", err)
+	}
+	tex2imgByteArray, tex2bounds, err := utils.LoadImageAsset("assets/awesomeface.png")
 	if err != nil {
 		log.Fatalf("Failed loading texture asset, %v", err)
 	}
 
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(bounds.Dx()), int32(bounds.Dy()), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(imgByteArray))
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(tex1bounds.Dx()), int32(tex1bounds.Dy()), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(tex1imgByteArray))
+	gl.GenerateMipmap(gl.TEXTURE_2D)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(tex2bounds.Dx()), int32(tex2bounds.Dy()), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(tex2imgByteArray))
 	gl.GenerateMipmap(gl.TEXTURE_2D)
 
 	// creating vao
@@ -112,6 +120,10 @@ func main() {
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
 
 	shaderProgram.Use()
+
+	gl.Uniform1i(shaderProgram.GetUniformLocation("texture1"), 0)
+	gl.Uniform1i(shaderProgram.GetUniformLocation("texture2"), 1)
+	
 
 	// render loop
 	for !window.ShouldClose() {
