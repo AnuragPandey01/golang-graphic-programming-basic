@@ -43,7 +43,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	gl.Viewport(0, 0, 640, 480)
+	fbWidth, fbHeight := window.GetFramebufferSize()
+	gl.Viewport(0, 0, int32(fbWidth), int32(fbHeight))
 
 	glfw.GetCurrentContext().SetFramebufferSizeCallback(func(w *glfw.Window, width, height int) {
 		gl.Viewport(0, 0, int32(width), int32(height))
@@ -174,23 +175,38 @@ func main() {
 	gl.Uniform1i(shaderProgram.GetUniformLocation("texture2"), 1)
 
 
-	// going 3D
-	model := mgl32.Ident4()
-	model = model.Mul4(mgl32.HomogRotate3D(mgl32.DegToRad(-55.0), mgl32.Vec3{1.0, 0.0, 0.0}))
-	gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("model"), 1, false, &model[0])
-
 	view := mgl32.Ident4()
-	view = view.Mul4(mgl32.Translate3D(0, 0, -5))
+	view = view.Mul4(mgl32.Translate3D(0, 0, -3))
 	gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("view"), 1, false, &view[0])
 
-	projection := mgl32.Perspective(mgl32.DegToRad(45), 640/480, 0.1, 100)
+	projection := mgl32.Perspective(mgl32.DegToRad(45), float32(fbWidth)/float32(fbHeight), 0.1, 100)
 	gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("projection"), 1, false, &projection[0])
+
+	cubePositions := []mgl32.Vec3{
+		{0, 0, 0},
+		{2, 5, -15},
+		{-1.5, -2.2, -2.5},
+		{-3.8, -2.0, -12.3},
+		{2.4, -0.4, -3.5},
+		{-1.7, 3.0, -7.5},
+		{1.3, -2.0, -2.5},
+		{1.5, 2.0, -2.5},
+		{1.5, 0.2, -1.5},
+		{-1.3, 1.0, -1.5},
+	}
 	
 	// render loop
 	for !window.ShouldClose() {
 
 		// input
 		processInput(window)
+
+		// Update projection matrix in case of resize
+		w, h := window.GetFramebufferSize()
+		if w > 0 && h > 0 {
+			proj := mgl32.Perspective(mgl32.DegToRad(45), float32(w)/float32(h), 0.1, 100)
+			gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("projection"), 1, false, &proj[0])
+		}
 
 		// rendering commands
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -199,7 +215,14 @@ func main() {
 		// gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
 		// gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
-		gl.DrawArrays(gl.TRIANGLES, 0, 36)
+		for i := 0; i<10; i++ {
+			model := mgl32.Ident4()
+			model = model.Mul4(mgl32.Translate3D(cubePositions[i][0], cubePositions[i][1], cubePositions[i][2]))
+			angle := 20.00 * float32(i)
+			model = model.Mul4(mgl32.HomogRotate3D(mgl32.DegToRad(angle),mgl32.Vec3{1.0, 0.3, 0.5}))
+			gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("model"), 1, false, &model[0])
+			gl.DrawArrays(gl.TRIANGLES, 0, 36)
+		}
 
 		model := mgl32.Ident4()
 		model = model.Mul4(mgl32.HomogRotate3D(float32(glfw.GetTime()), mgl32.Vec3{1.0, 0.0, 0.0}))
