@@ -22,6 +22,17 @@ func init() {
 	runtime.LockOSThread()
 }
 
+var cameraPos mgl32.Vec3 = mgl32.Vec3{0, 0, 3}
+var cameraFront mgl32.Vec3 = mgl32.Vec3{0, 0, -1}
+var cameraUp mgl32.Vec3 = mgl32.Vec3{0, 1, 0}
+var lastFrame float64 = 0.0
+var firstMouse = true
+var lastX float32 = 800.0 / 2.0
+var lastY float32 = 600.0 / 2.0
+var yaw float32 = -90.0
+var pitch float32 = 0.0
+var fov float32 = 45.0
+
 func main() {
 	err := glfw.Init()
 	if err != nil {
@@ -33,7 +44,7 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 
-	window, err := glfw.CreateWindow(640, 480, "Testing", nil, nil)
+	window, err := glfw.CreateWindow(800, 600, "Testing", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -50,8 +61,19 @@ func main() {
 	glfw.GetCurrentContext().SetFramebufferSizeCallback(func(w *glfw.Window, width, height int) {
 		gl.Viewport(0, 0, int32(width), int32(height))
 	})
+	window.SetCursorPosCallback(mouseCallback)
+	window.SetScrollCallback(func(w *glfw.Window, xoff, yoff float64) {
+		fov -= float32(yoff)
+		if fov < 1.0 {
+			fov = 1.0
+		}
+		if fov > 45 {
+			fov = 45
+		}
+	})
+	window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 
-	shaderProgram := shader.NewShaderProgram("assets/vertex_shader.glsl","assets/fragment_shader.glsl")
+	shaderProgram := shader.NewShaderProgram("assets/vertex_shader.glsl", "assets/fragment_shader.glsl")
 
 	err = shaderProgram.Compile()
 	if err != nil {
@@ -62,58 +84,58 @@ func main() {
 	vertices := []float32{
 		// positions          // texture coords
 		// Front
-		-0.5, -0.5,  0.5,      0.0, 0.0,
-		 0.5, -0.5,  0.5,      1.0, 0.0,
-		 0.5,  0.5,  0.5,      1.0, 1.0,
-	
-		 0.5,  0.5,  0.5,      1.0, 1.0,
-		-0.5,  0.5,  0.5,      0.0, 1.0,
-		-0.5, -0.5,  0.5,      0.0, 0.0,
-	
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+		0.5, -0.5, 0.5, 1.0, 0.0,
+		0.5, 0.5, 0.5, 1.0, 1.0,
+
+		0.5, 0.5, 0.5, 1.0, 1.0,
+		-0.5, 0.5, 0.5, 0.0, 1.0,
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+
 		// Back
-		 0.5, -0.5, -0.5,      0.0, 0.0,
-		-0.5, -0.5, -0.5,      1.0, 0.0,
-		-0.5,  0.5, -0.5,      1.0, 1.0,
-	
-		-0.5,  0.5, -0.5,      1.0, 1.0,
-		 0.5,  0.5, -0.5,      0.0, 1.0,
-		 0.5, -0.5, -0.5,      0.0, 0.0,
-	
+		0.5, -0.5, -0.5, 0.0, 0.0,
+		-0.5, -0.5, -0.5, 1.0, 0.0,
+		-0.5, 0.5, -0.5, 1.0, 1.0,
+
+		-0.5, 0.5, -0.5, 1.0, 1.0,
+		0.5, 0.5, -0.5, 0.0, 1.0,
+		0.5, -0.5, -0.5, 0.0, 0.0,
+
 		// Left
-		-0.5, -0.5, -0.5,      0.0, 0.0,
-		-0.5, -0.5,  0.5,      1.0, 0.0,
-		-0.5,  0.5,  0.5,      1.0, 1.0,
-	
-		-0.5,  0.5,  0.5,      1.0, 1.0,
-		-0.5,  0.5, -0.5,      0.0, 1.0,
-		-0.5, -0.5, -0.5,      0.0, 0.0,
-	
+		-0.5, -0.5, -0.5, 0.0, 0.0,
+		-0.5, -0.5, 0.5, 1.0, 0.0,
+		-0.5, 0.5, 0.5, 1.0, 1.0,
+
+		-0.5, 0.5, 0.5, 1.0, 1.0,
+		-0.5, 0.5, -0.5, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 0.0,
+
 		// Right
-		 0.5, -0.5,  0.5,      0.0, 0.0,
-		 0.5, -0.5, -0.5,      1.0, 0.0,
-		 0.5,  0.5, -0.5,      1.0, 1.0,
-	
-		 0.5,  0.5, -0.5,      1.0, 1.0,
-		 0.5,  0.5,  0.5,      0.0, 1.0,
-		 0.5, -0.5,  0.5,      0.0, 0.0,
-	
+		0.5, -0.5, 0.5, 0.0, 0.0,
+		0.5, -0.5, -0.5, 1.0, 0.0,
+		0.5, 0.5, -0.5, 1.0, 1.0,
+
+		0.5, 0.5, -0.5, 1.0, 1.0,
+		0.5, 0.5, 0.5, 0.0, 1.0,
+		0.5, -0.5, 0.5, 0.0, 0.0,
+
 		// Top
-		-0.5,  0.5,  0.5,      0.0, 0.0,
-		 0.5,  0.5,  0.5,      1.0, 0.0,
-		 0.5,  0.5, -0.5,      1.0, 1.0,
-	
-		 0.5,  0.5, -0.5,      1.0, 1.0,
-		-0.5,  0.5, -0.5,      0.0, 1.0,
-		-0.5,  0.5,  0.5,      0.0, 0.0,
-	
+		-0.5, 0.5, 0.5, 0.0, 0.0,
+		0.5, 0.5, 0.5, 1.0, 0.0,
+		0.5, 0.5, -0.5, 1.0, 1.0,
+
+		0.5, 0.5, -0.5, 1.0, 1.0,
+		-0.5, 0.5, -0.5, 0.0, 1.0,
+		-0.5, 0.5, 0.5, 0.0, 0.0,
+
 		// Bottom
-		-0.5, -0.5, -0.5,      0.0, 0.0,
-		 0.5, -0.5, -0.5,      1.0, 0.0,
-		 0.5, -0.5,  0.5,      1.0, 1.0,
-	
-		 0.5, -0.5,  0.5,      1.0, 1.0,
-		-0.5, -0.5,  0.5,      0.0, 1.0,
-		-0.5, -0.5, -0.5,      0.0, 0.0,
+		-0.5, -0.5, -0.5, 0.0, 0.0,
+		0.5, -0.5, -0.5, 1.0, 0.0,
+		0.5, -0.5, 0.5, 1.0, 1.0,
+
+		0.5, -0.5, 0.5, 1.0, 1.0,
+		-0.5, -0.5, 0.5, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 0.0,
 	}
 
 	indices := []uint32{
@@ -132,7 +154,7 @@ func main() {
 	}
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(tex1bounds.Dx()), int32(tex1bounds.Dy()), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(tex1imgByteArray))
 	gl.GenerateMipmap(gl.TEXTURE_2D)
-	
+
 	gl.GenTextures(1, &texture2)
 	gl.ActiveTexture(gl.TEXTURE1)
 	gl.BindTexture(gl.TEXTURE_2D, texture2)
@@ -161,7 +183,6 @@ func main() {
 
 	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 	gl.Enable(gl.DEPTH_TEST)
-	
 
 	// element bufer obj
 	var ebo uint32
@@ -175,13 +196,6 @@ func main() {
 	gl.Uniform1i(shaderProgram.GetUniformLocation("texture1"), 0)
 	gl.Uniform1i(shaderProgram.GetUniformLocation("texture2"), 1)
 
-
-	view := mgl32.LookAtV(mgl32.Vec3{0,0,3},mgl32.Vec3{0,0,0},mgl32.Vec3{0,1,0})
-	gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("view"), 1, false, &view[0])
-
-	projection := mgl32.Perspective(mgl32.DegToRad(45), float32(fbWidth)/float32(fbHeight), 0.1, 100)
-	gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("projection"), 1, false, &projection[0])
-
 	cubePositions := []mgl32.Vec3{
 		{0, 0, 0},
 		{2, 5, -15},
@@ -194,7 +208,7 @@ func main() {
 		{1.5, 0.2, -1.5},
 		{-1.3, 1.0, -1.5},
 	}
-	
+
 	// render loop
 	for !window.ShouldClose() {
 
@@ -209,24 +223,24 @@ func main() {
 		}
 
 		// rendering commands
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		// default: gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 		// gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
 		// gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
-		radius := 10.0
-		camx := math.Sin(glfw.GetTime()) * radius
-		camz := math.Cos(glfw.GetTime()) * radius
-		view := mgl32.LookAtV(mgl32.Vec3{float32(camx),0,float32(camz)},mgl32.Vec3{0,0,0},mgl32.Vec3{0,1,0})
+		view := mgl32.LookAtV(cameraPos, cameraPos.Add(cameraFront), cameraUp)
 		gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("view"), 1, false, &view[0])
-		
-		for i := 0; i<10; i++ {
+
+		projection := mgl32.Perspective(mgl32.DegToRad(fov), float32(fbWidth)/float32(fbHeight), 0.1, 100)
+		gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("projection"), 1, false, &projection[0])
+
+		for i := 0; i < 10; i++ {
 			model := mgl32.Ident4()
 			model = model.Mul4(mgl32.Translate3D(cubePositions[i][0], cubePositions[i][1], cubePositions[i][2]))
 			angle := 20.00 * float32(i)
-			model = model.Mul4(mgl32.HomogRotate3D(mgl32.DegToRad(angle),mgl32.Vec3{1.0, 0.3, 0.5}))
+			model = model.Mul4(mgl32.HomogRotate3D(mgl32.DegToRad(angle), mgl32.Vec3{1.0, 0.3, 0.5}))
 			gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("model"), 1, false, &model[0])
 			gl.DrawArrays(gl.TRIANGLES, 0, 36)
 		}
@@ -242,7 +256,63 @@ func main() {
 }
 
 func processInput(window *glfw.Window) {
+
+	currentFrame := glfw.GetTime()
+	deltaTime := currentFrame - lastFrame
+	lastFrame = currentFrame
+
+	cameraSpeed := 2.5 * deltaTime
+
+	if window.GetKey(glfw.KeyW) == glfw.Press {
+		cameraPos = cameraPos.Add(cameraFront.Mul(float32(cameraSpeed)))
+	}
+	if window.GetKey(glfw.KeyS) == glfw.Press {
+		cameraPos = cameraPos.Sub(cameraFront.Mul(float32(cameraSpeed)))
+	}
+	if window.GetKey(glfw.KeyA) == glfw.Press {
+		cameraPos = cameraPos.Sub(cameraFront.Cross(cameraUp).Normalize().Mul(float32(cameraSpeed)))
+	}
+	if window.GetKey(glfw.KeyD) == glfw.Press {
+		cameraPos = cameraPos.Add(cameraFront.Cross(cameraUp).Normalize().Mul(float32(cameraSpeed)))
+	}
 	if window.GetKey(glfw.KeyEscape) == glfw.Press {
 		window.SetShouldClose(true)
 	}
+}
+
+func mouseCallback(w *glfw.Window, xpos, ypos float64) {
+
+	if firstMouse {
+		lastX = float32(xpos)
+		lastY = float32(ypos)
+		firstMouse = false
+	}
+
+	xoffset := float32(xpos) - lastX
+	yoffset := lastY - float32(ypos) // reversed since y-coordinates go from bottom to top
+
+	lastX = float32(xpos)
+	lastY = float32(ypos)
+
+	var sensitivity float32 = 0.01
+	xoffset *= sensitivity
+	yoffset *= sensitivity
+
+	yaw += xoffset
+	pitch += yoffset
+
+	if pitch > 89.0 {
+		pitch = 89.0
+	}
+	if pitch < -89.0 {
+		pitch = -89.0
+	}
+
+	var front mgl32.Vec3 = mgl32.Vec3{0, 0, 0}
+	front[0] = float32(math.Cos(float64(mgl32.DegToRad(yaw))) * math.Cos(float64(mgl32.DegToRad(pitch))))
+	front[1] = float32(math.Sin(float64(mgl32.DegToRad(pitch))))
+	front[2] = float32(math.Sin(float64(mgl32.DegToRad(yaw))) * math.Cos(float64(mgl32.DegToRad(pitch))))
+
+	cameraFront = front.Normalize()
+
 }
