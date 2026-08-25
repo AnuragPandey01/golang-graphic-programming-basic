@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"runtime"
 
 	"log"
@@ -175,8 +176,7 @@ func main() {
 	gl.Uniform1i(shaderProgram.GetUniformLocation("texture2"), 1)
 
 
-	view := mgl32.Ident4()
-	view = view.Mul4(mgl32.Translate3D(0, 0, -3))
+	view := mgl32.LookAtV(mgl32.Vec3{0,0,3},mgl32.Vec3{0,0,0},mgl32.Vec3{0,1,0})
 	gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("view"), 1, false, &view[0])
 
 	projection := mgl32.Perspective(mgl32.DegToRad(45), float32(fbWidth)/float32(fbHeight), 0.1, 100)
@@ -215,6 +215,13 @@ func main() {
 		// gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
 		// gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
+
+		radius := 10.0
+		camx := math.Sin(glfw.GetTime()) * radius
+		camz := math.Cos(glfw.GetTime()) * radius
+		view := mgl32.LookAtV(mgl32.Vec3{float32(camx),0,float32(camz)},mgl32.Vec3{0,0,0},mgl32.Vec3{0,1,0})
+		gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("view"), 1, false, &view[0])
+		
 		for i := 0; i<10; i++ {
 			model := mgl32.Ident4()
 			model = model.Mul4(mgl32.Translate3D(cubePositions[i][0], cubePositions[i][1], cubePositions[i][2]))
