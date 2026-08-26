@@ -1,11 +1,11 @@
 package main
 
 import (
-	"math"
 	"runtime"
 
 	"log"
 
+	"github.com/anurag01/gogine/camera"
 	"github.com/anurag01/gogine/shader"
 	"github.com/anurag01/gogine/utils"
 	"github.com/go-gl/gl/v3.3-core/gl"
@@ -23,8 +23,7 @@ func init() {
 }
 
 var cameraPos mgl32.Vec3 = mgl32.Vec3{0, 0, 3}
-var cameraFront mgl32.Vec3 = mgl32.Vec3{0, 0, -1}
-var cameraUp mgl32.Vec3 = mgl32.Vec3{0, 1, 0}
+var worldUp mgl32.Vec3 = mgl32.Vec3{0, 1, 0}
 var lastFrame float64 = 0.0
 var firstMouse = true
 var lastX float32 = 800.0 / 2.0
@@ -32,6 +31,10 @@ var lastY float32 = 600.0 / 2.0
 var yaw float32 = -90.0
 var pitch float32 = 0.0
 var fov float32 = 45.0
+var cameraVelocity mgl32.Vec3 = mgl32.Vec3{0, 0, 0}
+var targetYaw float32 = -90.0
+var targetPitch float32 = 0.0
+var cam *camera.Camera
 
 func main() {
 	err := glfw.Init()
@@ -50,8 +53,9 @@ func main() {
 	}
 	window.MakeContextCurrent()
 
+	cam = camera.GetNewCamera(cameraPos,worldUp,targetYaw,targetPitch)
+	
 	if err := gl.Init(); err != nil {
-		print("hello")
 		log.Fatalln(err)
 	}
 
@@ -63,13 +67,7 @@ func main() {
 	})
 	window.SetCursorPosCallback(mouseCallback)
 	window.SetScrollCallback(func(w *glfw.Window, xoff, yoff float64) {
-		fov -= float32(yoff)
-		if fov < 1.0 {
-			fov = 1.0
-		}
-		if fov > 45 {
-			fov = 45
-		}
+		cam.ProcessMouseScroll(float32(yoff))
 	})
 	window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 
@@ -230,10 +228,10 @@ func main() {
 
 		// gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
-		view := mgl32.LookAtV(cameraPos, cameraPos.Add(cameraFront), cameraUp)
+		view := cam.ViewMatrix()
 		gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("view"), 1, false, &view[0])
 
-		projection := mgl32.Perspective(mgl32.DegToRad(fov), float32(fbWidth)/float32(fbHeight), 0.1, 100)
+		projection := mgl32.Perspective(mgl32.DegToRad(cam.Fov()), float32(fbWidth)/float32(fbHeight), 0.1, 100)
 		gl.UniformMatrix4fv(shaderProgram.GetUniformLocation("projection"), 1, false, &projection[0])
 
 		for i := 0; i < 10; i++ {
@@ -256,24 +254,21 @@ func main() {
 }
 
 func processInput(window *glfw.Window) {
-
 	currentFrame := glfw.GetTime()
 	deltaTime := currentFrame - lastFrame
 	lastFrame = currentFrame
 
-	cameraSpeed := 2.5 * deltaTime
-
 	if window.GetKey(glfw.KeyW) == glfw.Press {
-		cameraPos = cameraPos.Add(cameraFront.Mul(float32(cameraSpeed)))
+		cam.ProcessKeyboard(camera.DirectionForward, float32(deltaTime))
 	}
 	if window.GetKey(glfw.KeyS) == glfw.Press {
-		cameraPos = cameraPos.Sub(cameraFront.Mul(float32(cameraSpeed)))
+		cam.ProcessKeyboard(camera.DirectionBackward, float32(deltaTime))
 	}
 	if window.GetKey(glfw.KeyA) == glfw.Press {
-		cameraPos = cameraPos.Sub(cameraFront.Cross(cameraUp).Normalize().Mul(float32(cameraSpeed)))
+		cam.ProcessKeyboard(camera.DirectionLeft, float32(deltaTime))
 	}
 	if window.GetKey(glfw.KeyD) == glfw.Press {
-		cameraPos = cameraPos.Add(cameraFront.Cross(cameraUp).Normalize().Mul(float32(cameraSpeed)))
+		cam.ProcessKeyboard(camera.DirectionRight, float32(deltaTime))
 	}
 	if window.GetKey(glfw.KeyEscape) == glfw.Press {
 		window.SetShouldClose(true)
@@ -281,7 +276,6 @@ func processInput(window *glfw.Window) {
 }
 
 func mouseCallback(w *glfw.Window, xpos, ypos float64) {
-
 	if firstMouse {
 		lastX = float32(xpos)
 		lastY = float32(ypos)
@@ -294,25 +288,5 @@ func mouseCallback(w *glfw.Window, xpos, ypos float64) {
 	lastX = float32(xpos)
 	lastY = float32(ypos)
 
-	var sensitivity float32 = 0.01
-	xoffset *= sensitivity
-	yoffset *= sensitivity
-
-	yaw += xoffset
-	pitch += yoffset
-
-	if pitch > 89.0 {
-		pitch = 89.0
-	}
-	if pitch < -89.0 {
-		pitch = -89.0
-	}
-
-	var front mgl32.Vec3 = mgl32.Vec3{0, 0, 0}
-	front[0] = float32(math.Cos(float64(mgl32.DegToRad(yaw))) * math.Cos(float64(mgl32.DegToRad(pitch))))
-	front[1] = float32(math.Sin(float64(mgl32.DegToRad(pitch))))
-	front[2] = float32(math.Sin(float64(mgl32.DegToRad(yaw))) * math.Cos(float64(mgl32.DegToRad(pitch))))
-
-	cameraFront = front.Normalize()
-
+	cam.ProcessMouseMovement(xoffset, yoffset, true)
 }
